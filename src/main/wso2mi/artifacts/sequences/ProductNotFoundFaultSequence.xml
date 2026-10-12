@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="ProductNotFoundFaultSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <property name="ERROR_CODE_HTTP" scope="default" type="STRING" value="404"/>
+    <property name="ERROR_MESSAGE" scope="default" type="STRING" value="Product Not Found: The requested productId does not exist in product catalog"/>
+    <sequence key="ErrorHandlerSequence"/>
+</sequence>

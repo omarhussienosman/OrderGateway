@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="BadRequestFaultSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <property name="ERROR_CODE_HTTP" scope="default" type="STRING" value="400"/>
+    <property name="ERROR_MESSAGE" scope="default" type="STRING" value="Bad Request: Missing or invalid required fields (orderId, customerId, productId, quantity > 0)"/>
+    <sequence key="ErrorHandlerSequence"/>
+</sequence>

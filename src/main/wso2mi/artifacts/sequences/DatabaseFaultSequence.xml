@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="DatabaseFaultSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <property name="ERROR_CODE_HTTP" scope="default" type="STRING" value="500"/>
+    <property name="ERROR_MESSAGE" scope="default" type="STRING" value="Internal Server Error: Database failure while inserting order"/>
+    <sequence key="ErrorHandlerSequence"/>
+</sequence>

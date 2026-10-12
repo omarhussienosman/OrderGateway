@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/order-gateway" name="OrderGatewayAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- Resource 1: POST /orders - Main Order Orchestration -->
+    <resource methods="POST" uri-template="/orders">
+        <inSequence>
+            <!-- 1. Extract X-Request-ID header or generate fallback -->
+            <property expression="$trp:X-Request-ID" name="requestId" scope="default" type="STRING"/>
+            <filter xpath="not(boolean($ctx:requestId))">
+                <then>
+                    <property expression="fn:concat('req-', get-property('SYSTEM_TIME'))" name="requestId" scope="default" type="STRING"/>
+                </then>
+            </filter>
+
+            <!-- 2. Extract Client Request Fields -->
+            <property expression="json-eval($.orderId)" name="orderId" scope="default" type="STRING"/>
+            <property expression="json-eval($.customerId)" name="customerId" scope="default" type="STRING"/>
+            <property expression="json-eval($.productId)" name="productId" scope="default" type="STRING"/>
+            <property expression="json-eval($.quantity)" name="quantity" scope="default" type="STRING"/>
+            <property expression="$ctx:productId" name="uri.var.productId" scope="default" type="STRING"/>
+
+            <!-- 3. Validation: Missing fields or non-positive quantity -->
+            <filter xpath="not(boolean($ctx:orderId)) or not(boolean($ctx:customerId)) or not(boolean($ctx:productId)) or not(boolean($ctx:quantity)) or number($ctx:quantity) &lt;= 0">
+                <then>
+                    <sequence key="BadRequestFaultSequence"/>
+                </then>
+            </filter>
+
+            <!-- 4. Log Incoming Client Request -->
+            <log level="custom">
+                <property name="Direction" value="INCOMING_ORDER_REQUEST"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+                <property expression="$ctx:orderId" name="orderId"/>
+                <property expression="$ctx:customerId" name="customerId"/>
+                <property expression="$ctx:productId" name="productId"/>
+                <property expression="$ctx:quantity" name="quantity"/>
+            </log>
+
+            <!-- 5. Call Product REST Backend (DummyJSON) -->
+            <log level="custom">
+                <property name="Direction" value="CALLING_BACKEND"/>
+                <property name="Backend" value="DummyJSON Products"/>
+                <property expression="$ctx:uri.var.productId" name="productId"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+            <call>
+                <endpoint key="ProductHttpEndpoint"/>
+            </call>
+
+            <!-- 6. Verify Product Lookup Response -->
+            <property expression="json-eval($.id)" name="fetchedProductId" scope="default" type="STRING"/>
+            <property expression="json-eval($.message)" name="productBackendError" scope="default" type="STRING"/>
+            <filter xpath="$axis2:HTTP_SC = 404 or boolean($ctx:productBackendError) or not(boolean($ctx:fetchedProductId))">
+                <then>
+                    <sequence key="ProductNotFoundFaultSequence"/>
+                </then>
+            </filter>
+
+            <!-- Extract product fields -->
+            <property expression="json-eval($.title)" name="productName" scope="default" type="STRING"/>
+            <property expression="json-eval($.price)" name="unitPrice" scope="default" type="STRING"/>
+            <property expression="substring-before(concat(round(number($ctx:unitPrice)), '.'), '.')" name="intPrice" scope="default" type="STRING"/>
+
+            <log level="custom">
+                <property name="Direction" value="PRODUCT_FETCHED_SUCCESS"/>
+                <property expression="$ctx:productName" name="productName"/>
+                <property expression="$ctx:unitPrice" name="unitPrice"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <!-- 7. Call SOAP Calculator Backend (Multiply operation) -->
+            <log level="custom">
+                <property name="Direction" value="CALLING_BACKEND"/>
+                <property name="Backend" value="SOAP Calculator Multiply"/>
+                <property expression="$ctx:intPrice" name="intPrice"/>
+                <property expression="$ctx:quantity" name="quantity"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <header name="Action" scope="default" value="http://tempuri.org/Multiply"/>
+            <header name="SOAPAction" scope="transport" value="http://tempuri.org/Multiply"/>
+            <property name="messageType" scope="axis2" type="STRING" value="text/xml"/>
+            <payloadFactory media-type="xml">
+                <format>
+                    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+                        <soapenv:Header/>
+                        <soapenv:Body>
+                            <tem:Multiply>
+                                <tem:intA>$1</tem:intA>
+                                <tem:intB>$2</tem:intB>
+                            </tem:Multiply>
+                        </soapenv:Body>
+                    </soapenv:Envelope>
+                </format>
+                <args>
+                    <arg evaluator="xml" expression="$ctx:intPrice"/>
+                    <arg evaluator="xml" expression="$ctx:quantity"/>
+                </args>
+            </payloadFactory>
+            <call>
+                <endpoint key="CalculatorSoapEndpoint"/>
+            </call>
+
+            <!-- Extract total amount from SOAP response -->
+            <property expression="//*[local-name()='MultiplyResult']/text()" name="totalAmount" scope="default" type="STRING"/>
+            <filter xpath="not(boolean($ctx:totalAmount))">
+                <then>
+                    <sequence key="SoapCalculatorFaultSequence"/>
+                </then>
+            </filter>
+
+            <log level="custom">
+                <property name="Direction" value="SOAP_CALCULATION_SUCCESS"/>
+                <property expression="$ctx:totalAmount" name="totalAmount"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <!-- 8. Insert Order via Data Service (OrderDataService) -->
+            <log level="custom">
+                <property name="Direction" value="CALLING_BACKEND"/>
+                <property name="Backend" value="OrderDataService InsertOrder"/>
+                <property expression="$ctx:orderId" name="orderId"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <payloadFactory media-type="json">
+                <format>{
+    "_postorders": {
+        "id": $1,
+        "customer_id": $2,
+        "product_name": "$3",
+        "quantity": $4,
+        "total_amount": $5,
+        "status": "NEW"
+    }
+}</format>
+                <args>
+                    <arg evaluator="xml" expression="$ctx:orderId"/>
+                    <arg evaluator="xml" expression="$ctx:customerId"/>
+                    <arg evaluator="xml" expression="$ctx:productName"/>
+                    <arg evaluator="xml" expression="$ctx:quantity"/>
+                    <arg evaluator="xml" expression="$ctx:totalAmount"/>
+                </args>
+            </payloadFactory>
+            <call>
+                <endpoint key="OrderDataServiceEndpoint"/>
+            </call>
+
+            <!-- Verify Data Service response -->
+            <filter xpath="$axis2:HTTP_SC &gt;= 400 or boolean(//*[local-name()='Fault'])">
+                <then>
+                    <sequence key="DatabaseFaultSequence"/>
+                </then>
+            </filter>
+
+            <!-- 9. Construct Final Client Response Contract -->
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <property name="ContentType" scope="axis2" type="STRING" value="application/json"/>
+            <payloadFactory media-type="json">
+                <format>{
+    "orderId": $1,
+    "customerId": $2,
+    "product": {
+        "id": $3,
+        "name": "$4",
+        "unitPrice": $5
+    },
+    "quantity": $6,
+    "totalAmount": $7,
+    "status": "NEW"
+}</format>
+                <args>
+                    <arg evaluator="xml" expression="$ctx:orderId"/>
+                    <arg evaluator="xml" expression="$ctx:customerId"/>
+                    <arg evaluator="xml" expression="$ctx:productId"/>
+                    <arg evaluator="xml" expression="$ctx:productName"/>
+                    <arg evaluator="xml" expression="$ctx:unitPrice"/>
+                    <arg evaluator="xml" expression="$ctx:quantity"/>
+                    <arg evaluator="xml" expression="$ctx:totalAmount"/>
+                </args>
+            </payloadFactory>
+
+            <log level="custom">
+                <property name="Direction" value="ORDER_CREATED_SUCCESS"/>
+                <property expression="$ctx:orderId" name="orderId"/>
+                <property expression="$ctx:totalAmount" name="totalAmount"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <sequence key="ErrorHandlerSequence"/>
+        </faultSequence>
+    </resource>
+
+    <!-- Resource 2: GET /products/{productId} - Ticket 03 Standalone Product Lookup -->
+    <resource methods="GET" uri-template="/products/{productId}">
+        <inSequence>
+            <property expression="$trp:X-Request-ID" name="requestId" scope="default" type="STRING"/>
+            <filter xpath="not(boolean($ctx:requestId))">
+                <then>
+                    <property expression="fn:concat('req-', get-property('SYSTEM_TIME'))" name="requestId" scope="default" type="STRING"/>
+                </then>
+            </filter>
+
+            <property expression="get-property('uri.var.productId')" name="uri.var.productId" scope="default" type="STRING"/>
+            <log level="custom">
+                <property name="Direction" value="STANDALONE_PRODUCT_LOOKUP"/>
+                <property expression="$ctx:uri.var.productId" name="productId"/>
+                <property expression="$ctx:requestId" name="requestId"/>
+            </log>
+
+            <call>
+                <endpoint key="ProductHttpEndpoint"/>
+            </call>
+
+            <property expression="json-eval($.id)" name="pId" scope="default" type="STRING"/>
+            <property expression="json-eval($.message)" name="pError" scope="default" type="STRING"/>
+            <filter xpath="$axis2:HTTP_SC = 404 or boolean($ctx:pError) or not(boolean($ctx:pId))">
+                <then>
+                    <sequence key="ProductNotFoundFaultSequence"/>
+                </then>
+            </filter>
+
+            <property expression="json-eval($.title)" name="pTitle" scope="default" type="STRING"/>
+            <property expression="json-eval($.price)" name="pPrice" scope="default" type="STRING"/>
+
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <payloadFactory media-type="json">
+                <format>{
+    "id": $1,
+    "name": "$2",
+    "unitPrice": $3
+}</format>
+                <args>
+                    <arg evaluator="xml" expression="$ctx:pId"/>
+                    <arg evaluator="xml" expression="$ctx:pTitle"/>
+                    <arg evaluator="xml" expression="$ctx:pPrice"/>
+                </args>
+            </payloadFactory>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <sequence key="ErrorHandlerSequence"/>
+        </faultSequence>
+    </resource>
+
+    <!-- Resource 3: GET /orders/{orderId} - Challenge 1: Retrieve Order by ID -->
+    <resource methods="GET" uri-template="/orders/{orderId}">
+        <inSequence>
+            <property expression="get-property('uri.var.orderId')" name="uri.var.orderId" scope="default" type="STRING"/>
+            <header name="Accept" scope="transport" value="application/json"/>
+            <call>
+                <endpoint>
+                    <http method="get" uri-template="http://localhost:8290/services/OrderDataService/orders/{uri.var.orderId}"/>
+                </endpoint>
+            </call>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <sequence key="ErrorHandlerSequence"/>
+        </faultSequence>
+    </resource>
+
+    <!-- Resource 4: GET /orders - Retrieve All Orders -->
+    <resource methods="GET" uri-template="/orders">
+        <inSequence>
+            <header name="Accept" scope="transport" value="application/json"/>
+            <call>
+                <endpoint>
+                    <http method="get" uri-template="http://localhost:8290/services/OrderDataService/orders"/>
+                </endpoint>
+            </call>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <sequence key="ErrorHandlerSequence"/>
+        </faultSequence>
+    </resource>
+</api>

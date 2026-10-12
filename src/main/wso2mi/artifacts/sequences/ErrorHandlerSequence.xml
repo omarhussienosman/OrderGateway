@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="ErrorHandlerSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <!-- Default error code and message if not explicitly set -->
+    <filter xpath="not(boolean($ctx:ERROR_CODE_HTTP))">
+        <then>
+            <property name="ERROR_CODE_HTTP" scope="default" type="STRING" value="500"/>
+        </then>
+    </filter>
+    <filter xpath="not(boolean($ctx:ERROR_MESSAGE))">
+        <then>
+            <property name="ERROR_MESSAGE" scope="default" type="STRING" value="An unexpected error occurred processing the request."/>
+        </then>
+    </filter>
+    <filter xpath="not(boolean($ctx:ERROR_DETAIL))">
+        <then>
+            <property name="ERROR_DETAIL" scope="default" type="STRING" value="Internal error"/>
+        </then>
+    </filter>
+    <filter xpath="not(boolean($ctx:requestId))">
+        <then>
+            <property name="requestId" scope="default" type="STRING" value="N/A"/>
+        </then>
+    </filter>
+
+    <!-- Set HTTP Status Code -->
+    <property expression="$ctx:ERROR_CODE_HTTP" name="HTTP_SC" scope="axis2" type="STRING"/>
+    <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+    <property name="ContentType" scope="axis2" type="STRING" value="application/json"/>
+
+    <!-- Structured JSON Error Response matching Session 07 standards -->
+    <payloadFactory media-type="json">
+        <format>{
+    "status": "ERROR",
+    "errorCode": $1,
+    "errorMessage": "$2",
+    "errorDetail": "$3",
+    "requestId": "$4"
+}</format>
+        <args>
+            <arg evaluator="xml" expression="$ctx:ERROR_CODE_HTTP"/>
+            <arg evaluator="xml" expression="$ctx:ERROR_MESSAGE"/>
+            <arg evaluator="xml" expression="$ctx:ERROR_DETAIL"/>
+            <arg evaluator="xml" expression="$ctx:requestId"/>
+        </args>
+    </payloadFactory>
+
+    <!-- Logging error without exposing sensitive credentials -->
+    <log level="custom">
+        <property name="STATUS" value="TRANSACTION_ERROR"/>
+        <property expression="$ctx:requestId" name="requestId"/>
+        <property expression="$ctx:ERROR_CODE_HTTP" name="errorCode"/>
+        <property expression="$ctx:ERROR_MESSAGE" name="errorMessage"/>
+        <property expression="$ctx:ERROR_DETAIL" name="errorDetail"/>
+    </log>
+
+    <respond/>
+</sequence>

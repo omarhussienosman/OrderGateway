@@ -1,0 +1,7 @@
+{
+    "MI.Scope": "user",
+    "MI.LEGACY_EXPRESSION_ENABLED": false,
+    "MI.SERVER_PATH": "e:\\wso2mi-4.6.0",
+    "MI.JAVA_HOME": "c:\\Program Files\\Java\\jdk-21.0.10",
+    "MI.useLocalMaven": false
+}

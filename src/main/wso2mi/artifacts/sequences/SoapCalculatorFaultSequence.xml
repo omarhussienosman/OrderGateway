@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sequence name="SoapCalculatorFaultSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <property name="ERROR_CODE_HTTP" scope="default" type="STRING" value="502"/>
+    <property name="ERROR_MESSAGE" scope="default" type="STRING" value="Bad Gateway: SOAP Calculator service unavailable or multiplication failed"/>
+    <sequence key="ErrorHandlerSequence"/>
+</sequence>

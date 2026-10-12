@@ -1,0 +1,268 @@
+{
+	"info": {
+		"_postman_id": "8fbb1a90-3b2d-4876-90f7-1114249a022b",
+		"name": "WSO2 MI - Order Gateway (Final Project)",
+		"description": "Comprehensive Postman Collection covering test matrix for WSO2 MI Order Gateway project including success, dynamic values, 400 Bad Request, 404 Not Found, and extra challenge endpoints.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "TC01 - Create Order Success (200 OK)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc01-5001"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"orderId\": 5001,\n    \"customerId\": 1001,\n    \"productId\": 10,\n    \"quantity\": 2\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC02 - Create Order Dynamic Values (200 OK)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc02-5002"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"orderId\": 5002,\n    \"customerId\": 1002,\n    \"productId\": 2,\n    \"quantity\": 3\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC03 - Missing Quantity (400 Bad Request)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc03-missing-qty"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"orderId\": 5003,\n    \"customerId\": 1001,\n    \"productId\": 10\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC04 - Invalid Quantity Zero (400 Bad Request)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc04-zero-qty"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"orderId\": 5004,\n    \"customerId\": 1001,\n    \"productId\": 10,\n    \"quantity\": 0\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC05 - Product Not Found (404 Not Found)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc05-product-404"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"orderId\": 5005,\n    \"customerId\": 1001,\n    \"productId\": 999999,\n    \"quantity\": 2\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC06 - Standalone Product Lookup (200 OK)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc06-product-lookup"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/products/10",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"products",
+						"10"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC07 - Standalone Product Lookup (404 Not Found)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Request-ID",
+						"value": "req-tc07-product-404"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/products/999999",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"products",
+						"999999"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC08 - Get Order by ID (Challenge 1)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders/5001",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders",
+						"5001"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "TC09 - Get All Orders (Challenge / Verification)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8290/order-gateway/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8290",
+					"path": [
+						"order-gateway",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

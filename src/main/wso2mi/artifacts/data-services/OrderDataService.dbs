@@ -1,0 +1,105 @@
+<data name="OrderDataService" serviceNamespace="http://ws.wso2.org/dataservice" serviceGroup="OrderDataService">
+    <description>Data Service for Order Gateway to persist and fetch orders in TrainingDB</description>
+    <config id="TrainingDBDS">
+        <property name="driverClassName">com.mysql.cj.jdbc.Driver</property>
+        <property name="url">jdbc:mysql://localhost:3306/TrainingDB?useSSL=false&amp;allowPublicKeyRetrieval=true</property>
+        <property name="username">yourusername</property>
+        <property name="password">yourpassword</property>
+    </config>
+
+    <!-- Insert Order Query -->
+    <query id="InsertOrderQuery" useConfig="TrainingDBDS">
+        <sql>INSERT INTO orders (id, customer_id, product_name, quantity, total_amount, status) VALUES (?, ?, ?, ?, ?, ?)</sql>
+        <param name="id" sqlType="INTEGER" />
+        <param name="customer_id" sqlType="INTEGER" />
+        <param name="product_name" sqlType="STRING" />
+        <param name="quantity" sqlType="INTEGER" />
+        <param name="total_amount" sqlType="DOUBLE" />
+        <param name="status" sqlType="STRING" />
+    </query>
+
+    <!-- Get Order by ID Query -->
+    <query id="GetOrderByIdQuery" useConfig="TrainingDBDS">
+        <sql>SELECT id, customer_id, product_name, quantity, total_amount, status, created_at FROM orders WHERE id = ?</sql>
+        <param name="id" sqlType="INTEGER" />
+        <result element="Orders" rowName="Order" outputType="json">
+            {
+                "orders": {
+                    "order": [
+                        {
+                            "id": "$id",
+                            "customerId": "$customer_id",
+                            "productName": "$product_name",
+                            "quantity": "$quantity",
+                            "totalAmount": "$total_amount",
+                            "status": "$status",
+                            "createdAt": "$created_at"
+                        }
+                    ]
+                }
+            }
+        </result>
+    </query>
+
+    <!-- Get All Orders Query -->
+    <query id="GetAllOrdersQuery" useConfig="TrainingDBDS">
+        <sql>SELECT id, customer_id, product_name, quantity, total_amount, status, created_at FROM orders ORDER BY created_at DESC</sql>
+        <result element="Orders" rowName="Order" outputType="json">
+            {
+                "orders": {
+                    "order": [
+                        {
+                            "id": "$id",
+                            "customerId": "$customer_id",
+                            "productName": "$product_name",
+                            "quantity": "$quantity",
+                            "totalAmount": "$total_amount",
+                            "status": "$status",
+                            "createdAt": "$created_at"
+                        }
+                    ]
+                }
+            }
+        </result>
+    </query>
+
+    <!-- Operations -->
+    <operation name="InsertOrder">
+        <call-query href="InsertOrderQuery">
+            <with-param name="id" query-param="id" />
+            <with-param name="customer_id" query-param="customer_id" />
+            <with-param name="product_name" query-param="product_name" />
+            <with-param name="quantity" query-param="quantity" />
+            <with-param name="total_amount" query-param="total_amount" />
+            <with-param name="status" query-param="status" />
+        </call-query>
+    </operation>
+
+    <operation name="GetOrderById">
+        <call-query href="GetOrderByIdQuery">
+            <with-param name="id" query-param="id" />
+        </call-query>
+    </operation>
+
+    <!-- REST Resources -->
+    <resource method="POST" path="/orders">
+        <call-query href="InsertOrderQuery">
+            <with-param name="id" query-param="id" />
+            <with-param name="customer_id" query-param="customer_id" />
+            <with-param name="product_name" query-param="product_name" />
+            <with-param name="quantity" query-param="quantity" />
+            <with-param name="total_amount" query-param="total_amount" />
+            <with-param name="status" query-param="status" />
+        </call-query>
+    </resource>
+
+    <resource method="GET" path="/orders/{id}">
+        <call-query href="GetOrderByIdQuery">
+            <with-param name="id" query-param="id" />
+        </call-query>
+    </resource>
+
+    <resource method="GET" path="/orders">
+        <call-query href="GetAllOrdersQuery" />
+    </resource>
+</data>
